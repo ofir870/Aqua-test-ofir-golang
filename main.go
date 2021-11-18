@@ -37,24 +37,26 @@ func main() {
 	os.Remove("aqua.db")
 
 	log.Println("Creating aqua.db...")
+
 	file, err := os.Create("aqua.db")
+
 	if err != nil {
+
 		log.Fatal(err.Error())
+
 	}
 	file.Close()
 	log.Println("aqua.db created")
 
 	sqliteDatabase, _ := sql.Open("sqlite3", "./aqua.db")
 	defer sqliteDatabase.Close()
-	createTable(sqliteDatabase)
+	createTables(sqliteDatabase)
 
 	// INSERT RECORDS
 	insertHost(sqliteDatabase, 1, "4e9edc48-2869-4172-903d-65008fd2895e", "AWS Host", "1.2.3.4")
 	insertHost(sqliteDatabase, 2, "f89cda2e-628a-4f6e-b1d8-1ecf389e2454", "Azure Host", "4.5.6.7")
 	insertHost(sqliteDatabase, 3, "863d9084-935e-4c71-990d-3a7dad113097", "GCP Host", "7.8.9.0")
 	insertHost(sqliteDatabase, 4, "86d33421-8945-4a50-bcf6-fd3750e51942", "IBM Host", "4.5.6.7")
-
-	fmt.Println("the server his runing")
 
 	handleRequests()
 }
@@ -73,47 +75,43 @@ func handleRequests() {
 	db, _ := sql.Open("sqlite3", "./aqua.db") // Open the created SQLite File
 	defer db.Close()                          // Defer Closing the database
 
-	// returnAllHosts
+	// -------------------------------ALL API CALLS -------------------------------
+	// ---------------------------!!!!!!!!! -------------------------------
+	// returnAllHosts :>> /host
 	myRouter.HandleFunc("/host", func(w http.ResponseWriter, r *http.Request) {
 		returnAllHosts(w, r, db)
 	})
-
-	// returnAllContainers
+	// returnAllContainers :>> /container
 	myRouter.HandleFunc("/container", func(w http.ResponseWriter, r *http.Request) {
 		returnAllContainers(w, r, db)
 	})
-
-	// createNewContainer
+	// createNewContainer :>> /container/create
 	myRouter.HandleFunc("/container/create", func(w http.ResponseWriter, r *http.Request) {
 		createNewContainer(w, r, db)
 	}).Methods(("POST"))
-
-	// returnSingleHost
+	// returnSingleHost :>> /host/{id}
 	myRouter.HandleFunc("/host/{id}", func(w http.ResponseWriter, r *http.Request) {
 		returnSingleHost(w, r, db)
 	})
-
-	// returnSingleContainer
+	// returnSingleContainer :>> /container/{id}
 	myRouter.HandleFunc("/container/{id}", func(w http.ResponseWriter, r *http.Request) {
 		returnSingleContainer(w, r, db)
 	})
-
-	// returnAllContainerByName
+	// returnAllContainerByName :>> /container/sort/{host_id}
 	myRouter.HandleFunc("/container/sort/{host_id}", func(w http.ResponseWriter, r *http.Request) {
 		returnAllContainerByHostID(w, r, db)
 	})
-	// createNewContainer
 
 	log.Fatal(http.ListenAndServe(":10000", myRouter))
 }
 
-func createTable(db *sql.DB) {
+func createTables(db *sql.DB) {
 	createHostTableSQL := `CREATE TABLE hosts (
 		"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,		
 		"uuid" TEXT,
 		"name" TEXT,
 		"ip_address" TEXT		
-	  );` // SQL Statement for Create Table
+	  );`
 
 	log.Println("Create Host table...")
 	statementHost, err := db.Prepare(createHostTableSQL) // Prepare SQL Statement
@@ -181,7 +179,6 @@ func insertContainer(db *sql.DB, id int, name string, host_id int, image_name in
 
 func createNewContainer(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
-	fmt.Println("createNewContainer")
 	reqBody, _ := ioutil.ReadAll(r.Body)
 	var container Container
 	json.Unmarshal(reqBody, &container)
@@ -190,9 +187,6 @@ func createNewContainer(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	defer aquaDB.Close()
 
 	insertContainer(aquaDB, container.ID, container.Name, container.Host_ID, container.Image_Name)
-
-	fmt.Println((container))
-	fmt.Println((container.Name))
 
 	json.NewEncoder(w).Encode(container)
 }
@@ -253,18 +247,17 @@ func returnAllContainers(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	}
 
-	// fmt.Println(arr)
 	json.NewEncoder(w).Encode(arr)
 }
 
 func returnSingleHost(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	vars := mux.Vars(r)
 	key := vars["id"]
-	// number, _ := strconv.Atoi(key)
+
 	var sb strings.Builder
 	sb.WriteString("SELECT * FROM hosts WHERE id = ")
 	sb.WriteString(key)
-	fmt.Println(sb.String())
+
 	row, err := db.Query(sb.String())
 	if err != nil {
 		log.Fatal(err)
@@ -279,24 +272,18 @@ func returnSingleHost(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 		row.Scan(&id, &uuid, &name, &ip_address)
 
-		fmt.Println(id)
-		fmt.Println(uuid)
-		fmt.Println(ip_address)
 		host.ID = id
 		host.UUID = uuid
 		host.Name = name
 		host.IP_Address = ip_address
 	}
-	fmt.Println(host)
 	json.NewEncoder(w).Encode(host)
-
 }
 
 func returnSingleContainer(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	fmt.Println("returnSingleContainer")
+
 	vars := mux.Vars(r)
 	key := vars["id"]
-	// number, _ := strconv.Atoi(key)
 
 	var sb strings.Builder
 	sb.WriteString("SELECT * FROM containers WHERE id = ")
@@ -324,7 +311,6 @@ func returnSingleContainer(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	}
 
-	// fmt.Println(arr)
 	json.NewEncoder(w).Encode(container)
 }
 
